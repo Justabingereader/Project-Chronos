@@ -2,12 +2,6 @@
 
 A hybrid IT support lab: on-premises Active Directory synced to a Microsoft Entra tenant, with Intune-managed devices. It's run like an MSP customer, so every fault is diagnosed from evidence, logged as a ticket and closed with a knowledge-base article.
 
-## Goals, in priority order
-
-1. **Diagnosis:** find the root cause from first-party evidence (logs, `dsregcmd`, sign-in logs, Event Viewer) without searching for the fix, up to the point where a tier-2 MSP technician would escalate.
-2. **Competency:** do routine admin work correctly and repeatably.
-3. **Tool know-how:** Active Directory, DNS, DHCP, Group Policy, Entra ID, Intune, Microsoft 365 admin, PowerShell.
-
 ## Environment
 
 | Component | Detail |
