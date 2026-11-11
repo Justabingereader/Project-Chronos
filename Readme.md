@@ -9,6 +9,7 @@ A hybrid IT support lab: on-premises Active Directory synced to a Microsoft Entr
 | Host | Windows 11, Hyper-V, Internal switch `Chronos-Lab` with NAT (gateway `10.20.0.254`) |
 | DC01 | Windows Server 2025: AD DS, DNS, DHCP, `10.20.0.1` |
 | CL01 | Windows 11 Enterprise: DHCP client, joined to `chronos.lab` |
+| OSTICKET01 | Ubuntu Server 24.04: Apache, MariaDB, PHP 8.4, osTicket v1.18.4, `10.20.0.5`, reachable at `osticket.chronos.lab` |
 | Domain | `chronos.lab` |
 
 - [IP plan and topology](Design/ip-plan-and-topology.md)
@@ -18,7 +19,7 @@ A hybrid IT support lab: on-premises Active Directory synced to a Microsoft Entr
 
 | Phase | Scope | Status |
 | --- | --- | --- |
-| 0 | Local foundation: network, DC, DNS, DHCP, OUs, client, osTicket | In progress (osTicket remaining) |
+| 0 | Local foundation: network, DC, DNS, DHCP, OUs, client, osTicket | Done |
 | 1 | Trial tenant, hybrid sync, joiner/mover/leaver | Not started |
 | 2 | Entra for people: MFA, SSPR, Conditional Access | Not started |
 | 3 | Intune on a hybrid-joined VM and an Entra-joined laptop | Not started |
@@ -32,8 +33,11 @@ A hybrid IT support lab: on-premises Active Directory synced to a Microsoft Entr
 - [RB-003: Firewall rule for gateway pings](Notes/Runbooks/RB-003-Setting_up_firewall_rule_for_gateway.md)
 - [RB-004: Set up DHCP](Notes/Runbooks/RB-004_Setting_up_DHCP.md)
 - [RB-005: Build the OUs](Notes/Runbooks/RB-005-Building_OUs.md)
+- [RB-006: Set up the LAMP stack and osTicket](Notes/Runbooks/RB-006-Setting_up_LAMP_stack_for_osTicket.md)
 
 ## Knowledge-base articles
 
 - [KB-001: Default gateway not answering pings](Notes/KBArticles/KB-001-default_gateway_not_answering.md)
 - [KB-002: nslookup shows "Server: UnKnown" with a timeout](Notes/KBArticles/KB-002-DNS_server-_not_resolving_DNS_server_name.md)
+- [KB-003: VM fails to start with 0x8007000E](Notes/KBArticles/KB-003-Troubleshooting_VM_startup_due_to_memory_insufficiency.md)
+- [KB-004: osTicket returns HTTP 500 after submitting the setup page](Notes/KBArticles/KB-004-Troubleshooting_osTicket_HTTP-Error-500_after_setup_submit.md)
