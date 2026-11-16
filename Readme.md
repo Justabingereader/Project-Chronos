@@ -20,7 +20,7 @@ A hybrid IT support lab: on-premises Active Directory synced to a Microsoft Entr
 | Phase | Scope | Status |
 | --- | --- | --- |
 | 0 | Local foundation: network, DC, DNS, DHCP, OUs, client, osTicket | Done |
-| 1 | Trial tenant, hybrid sync, joiner/mover/leaver | Not started |
+| 1 | Tenant, hybrid sync, joiner/mover/leaver | In progress (sync and JML scripts done; session revocation next) |
 | 2 | Entra for people: MFA, SSPR, Conditional Access | Not started |
 | 3 | Intune on a hybrid-joined VM and an Entra-joined laptop | Not started |
 | 4 | Microsoft 365 admin basics | Not started |
@@ -34,6 +34,7 @@ A hybrid IT support lab: on-premises Active Directory synced to a Microsoft Entr
 - [RB-004: Set up DHCP](Notes/Runbooks/RB-004_Setting_up_DHCP.md)
 - [RB-005: Build the OUs](Notes/Runbooks/RB-005-Building_OUs.md)
 - [RB-006: Set up the LAMP stack and osTicket](Notes/Runbooks/RB-006-Setting_up_LAMP_stack_for_osTicket.md)
+- [RB-007: Connect on-prem AD to Entra with Connect Sync](Notes/Runbooks/RB-007-Connecting_Entra_Connect_to_on-prem_AD.md)
 
 ## Knowledge-base articles
 
@@ -41,3 +42,9 @@ A hybrid IT support lab: on-premises Active Directory synced to a Microsoft Entr
 - [KB-002: nslookup shows "Server: UnKnown" with a timeout](Notes/KBArticles/KB-002-DNS_server-_not_resolving_DNS_server_name.md)
 - [KB-003: VM fails to start with 0x8007000E](Notes/KBArticles/KB-003-Troubleshooting_VM_startup_due_to_memory_insufficiency.md)
 - [KB-004: osTicket returns HTTP 500 after submitting the setup page](Notes/KBArticles/KB-004-Troubleshooting_osTicket_HTTP-Error-500_after_setup_submit.md)
+- [KB-005: Synced user shows an onmicrosoft.com UPN after a restore](Notes/KBArticles/KB-005-Troubleshooting_AD_User_Showing_Entra_default_domain.md)
+
+## Scripts
+
+- [New-ADChronosUser.ps1](Notes/Scripts/New-ADChronosUser.ps1): joiner (creates the user in the department OU, sets the UPN, adds the group)
+- [Disable-ChronosUser.ps1](Notes/Scripts/Disable-ChronosUser.ps1): leaver (disables, resets the password, records and removes groups, moves to Leavers, logs the ticket)
