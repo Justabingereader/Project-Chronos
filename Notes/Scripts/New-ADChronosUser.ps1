@@ -53,4 +53,5 @@ function New-ChronosADUser {
         Write-Host "Failed to create $GeneratedSam, please try again." -ForegroundColor Red
         Write-Host $_.Exception.Message -ForegroundColor Yellow
     }
+	Start-Process powershell -ArgumentList '-NoProfile -Command "Import-Module ADSync; Start-ADSyncSyncCycle -PolicyType Delta"' -Wait -NoNewWindow
 }

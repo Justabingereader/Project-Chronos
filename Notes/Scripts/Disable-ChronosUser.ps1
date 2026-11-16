@@ -6,6 +6,8 @@ function Disable-ChronosUser {
 	    [Parameter(Mandatory=$true)]
 	    [int]$TicketNumber
 	)
+	
+	$Config = Import-PowerShellDataFile -Path "C:\Scripts\chronos-config.psd1"
 
 	Add-Type -AssemblyName System.Web
         $PlainPassword  = [System.Web.Security.Membership]::GeneratePassword(14, 3)
@@ -14,7 +16,7 @@ function Disable-ChronosUser {
 	$LogFolder = "C:\Logs"
 	if (-not (Test-Path $LogFolder)) { New-Item -ItemType Directory -Path $LogFolder | Out-Null }
 
-	$LogPath = "$LogFolder\OffboardingTickets.csv"
+	$LogPath = "$LogFolder\OffboardingTicketsv1.csv"
 	if(Test-Path $LogPath) {
 		$PastRecords = Import-Csv -Path $Logpath
 		if($PastRecords.TicketNumber -contains $TicketNumber) {
@@ -52,13 +54,31 @@ function Disable-ChronosUser {
 	catch {
 		Write-Host $_.Exception.Message -ForegroundColor Yellow
 	}
-	
-
+	Start-Process powershell -ArgumentList '-NoProfile -Command "Import-Module ADSync; Start-ADSyncSyncCycle -PolicyType Delta | Out-Null; Start-Sleep 5; while ((Get-ADSyncScheduler).SyncCycleInProgress) { Start-Sleep 5 }"' -Wait -NoNewWindow
+	try {
+	Connect-MgGraph -ClientId $($Config.ClientId) -TenantId $($Config.TenantId) -CertificateThumbprint $($Config.Thumbprint) -NoWelcome
+	$ADUser = Get-ADUSer -Identity $SamAccountName -Properties UserPrincipalName
+	$UserUPN = $ADUser.UserPrincipalName
+	$RevokeResult = Revoke-MgUserSignInSession -UserId $UserUPN
+	$isRevoked = $RevokeResult.Value
+	} catch {
+	$isRevoked = "FAILED: $($_.Exception.Message)"
+	}
+	finally {
+	Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
+	}
+	if($isRevoked -eq $true){
+		Write-Output "User Session was successfully revoked"
+	}
+	else {
+		Write-Warning "User session was not able to be successfully revoked, please try again."
+	}
 	[PSCustomObject]@{
    		Date         = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
     		TicketNumber = $TicketNumber
 		Username = $SamAccountName
 		RunBy = $env:USERNAME
+		Revoked = $isRevoked
 	} | Export-Csv -Path $LogPath -Append -NoTypeInformation
 	}
 	
