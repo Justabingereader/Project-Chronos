@@ -56,10 +56,10 @@ function Disable-ChronosUser {
 	}
 	Start-Process powershell -ArgumentList '-NoProfile -Command "Import-Module ADSync; Start-ADSyncSyncCycle -PolicyType Delta | Out-Null; Start-Sleep 5; while ((Get-ADSyncScheduler).SyncCycleInProgress) { Start-Sleep 5 }"' -Wait -NoNewWindow
 	try {
-	Connect-MgGraph -ClientId $($Config.ClientId) -TenantId $($Config.TenantId) -CertificateThumbprint $($Config.Thumbprint) -NoWelcome
-	$ADUser = Get-ADUSer -Identity $SamAccountName -Properties UserPrincipalName
+	Connect-MgGraph -ClientId $($Config.ClientId) -TenantId $($Config.TenantId) -CertificateThumbprint $($Config.Thumbprint) -NoWelcome -ErrorAction Stop
+	$ADUser = Get-ADUSer -Identity $SamAccountName -Properties UserPrincipalName 
 	$UserUPN = $ADUser.UserPrincipalName
-	$RevokeResult = Revoke-MgUserSignInSession -UserId $UserUPN
+	$RevokeResult = Revoke-MgUserSignInSession -UserId $UserUPN -ErrorAction Stop
 	$isRevoked = $RevokeResult.Value
 	} catch {
 	$isRevoked = "FAILED: $($_.Exception.Message)"
@@ -71,7 +71,7 @@ function Disable-ChronosUser {
 		Write-Output "User Session was successfully revoked"
 	}
 	else {
-		Write-Warning "User session was not able to be successfully revoked, please try again."
+		Write-Warning "$isRevoked"
 	}
 	[PSCustomObject]@{
    		Date         = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")

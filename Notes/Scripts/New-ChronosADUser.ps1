@@ -7,21 +7,25 @@ function New-ChronosADUser {
         [string]$LastName,
 
         [Parameter(Mandatory=$true)]
-        [ValidateSet("IT", "Finance", "Sales")]
         [string]$Department
     )
+    $roles = Import-PowerShellDataFile C:\Scripts\chronos-roles.psd1
+    if ($Department -notin $roles.Departments.Keys) {
+        Write-Warning "Unknown department $Department. Valid: $($roles.Departments.Keys -join ', ')"
+        return
+    }
 
     $GeneratedSam = "$FirstName.$LastName".ToLower()
     if ($GeneratedSam.Length -gt 20) {
         $GeneratedSam = $GeneratedSam.Substring(0, 20)
     }
     $GeneratedUPN = "$FirstName.$LastName@chronos.saintshubs.com".ToLower()
-    $TargetOU     = "OU=$Department,OU=Users,OU=Chronos,DC=chronos,DC=lab"
+    $TargetOU     = $roles.Departments[$Department].OU
 
     $Existing = Get-ADUser -Filter "SamAccountName -eq '$GeneratedSam' -or UserPrincipalName -eq '$GeneratedUPN'"
     if ($Existing) {
-    Write-Host "Account already exists: $($Existing.SamAccountName) in $($Existing.DistinguishedName). Nothing created." -ForegroundColor Red
-    return
+        Write-Host "Account already exists: $($Existing.SamAccountName) in $($Existing.DistinguishedName). Nothing created." -ForegroundColor Red
+        return
     }
 
     Add-Type -AssemblyName System.Web
@@ -41,17 +45,23 @@ function New-ChronosADUser {
                    -ChangePasswordAtLogon $true `
                    -Enabled $true `
                    -ErrorAction Stop
+    }
+    catch {
+        Write-Host $_.Exception.Message -ForegroundColor Yellow
+        return
+    }
 
-        Add-ADGroupMember -Identity "GG-$Department" `
-                          -Members $GeneratedSam `
-                          -ErrorAction Stop
+    try {
+        foreach ($Group in $roles.Departments[$Department].Groups) {
+            Add-ADGroupMember -Identity $Group -Members $GeneratedSam -ErrorAction Stop
+        }
 
         Write-Host "Created $GeneratedSam successfully!" -ForegroundColor Green
         Write-Host "Temporary Password: $PlainPassword | UPN: $GeneratedUPN | Path: $TargetOU" -ForegroundColor Yellow
+        Start-Process powershell -ArgumentList '-NoProfile -Command "Import-Module ADSync; Start-ADSyncSyncCycle -PolicyType Delta"' -Wait -NoNewWindow
     }
     catch {
-        Write-Host "Failed to create $GeneratedSam, please try again." -ForegroundColor Red
+        Write-Host "Created $GeneratedSam, but not added to $Group; fix manually." -ForegroundColor Red
         Write-Host $_.Exception.Message -ForegroundColor Yellow
     }
-	Start-Process powershell -ArgumentList '-NoProfile -Command "Import-Module ADSync; Start-ADSyncSyncCycle -PolicyType Delta"' -Wait -NoNewWindow
 }
