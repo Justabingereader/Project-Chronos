@@ -73,7 +73,7 @@ The on-prem AD connected to Entra as an application rather than an identity.
 
 ![0 devices: CL01 is in scope but skipped until hybrid join writes its device certificate](images/rb-007-devices-zero.png)
 
-I then used [New-ADChronosUser.ps1](../Scripts/New-ADChronosUser.ps1) to set up a user, saving the script as a .ps1 extension and loading it through the dot notation before running the function with the created parameters.
+I then used [New-ChronosADUser.ps1](../Scripts/New-ChronosADUser.ps1) (then named New-ADChronosUser) to set up a user, saving the script as a .ps1 extension and loading it through the dot notation before running the function with the created parameters.
 
 ![Joiner script run (temporary password redacted)](images/rb-007-joiner-run.png)
 

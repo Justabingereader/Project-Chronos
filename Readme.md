@@ -20,7 +20,7 @@ A hybrid IT support lab: on-premises Active Directory synced to a Microsoft Entr
 | Phase | Scope | Status |
 | --- | --- | --- |
 | 0 | Local foundation: network, DC, DNS, DHCP, OUs, client, osTicket | Done |
-| 1 | Tenant, hybrid sync, joiner/mover/leaver | In progress (sync and JML scripts done; session revocation next) |
+| 1 | Tenant, hybrid sync, joiner/mover/leaver | Done |
 | 2 | Entra for people: MFA, SSPR, Conditional Access | Not started |
 | 3 | Intune on a hybrid-joined VM and an Entra-joined laptop | Not started |
 | 4 | Microsoft 365 admin basics | Not started |
@@ -35,6 +35,7 @@ A hybrid IT support lab: on-premises Active Directory synced to a Microsoft Entr
 - [RB-005: Build the OUs](Notes/Runbooks/RB-005-Building_OUs.md)
 - [RB-006: Set up the LAMP stack and osTicket](Notes/Runbooks/RB-006-Setting_up_LAMP_stack_for_osTicket.md)
 - [RB-007: Connect on-prem AD to Entra with Connect Sync](Notes/Runbooks/RB-007-Connecting_Entra_Connect_to_on-prem_AD.md)
+- [RB-008: Joiner, mover and leaver scripts with Entra session revocation](Notes/Runbooks/RB-008-Modifying_AD_users_through_scripts_and_pushing_to_Entra.md)
 
 ## Knowledge-base articles
 
@@ -46,5 +47,9 @@ A hybrid IT support lab: on-premises Active Directory synced to a Microsoft Entr
 
 ## Scripts
 
-- [New-ADChronosUser.ps1](Notes/Scripts/New-ADChronosUser.ps1): joiner (creates the user in the department OU, sets the UPN, adds the group)
-- [Disable-ChronosUser.ps1](Notes/Scripts/Disable-ChronosUser.ps1): leaver (disables, resets the password, records and removes groups, moves to Leavers, logs the ticket)
+- [chronos-roles.psd1](Notes/Scripts/chronos-roles.psd1): departments, their birthright groups and user OUs; read by every script
+- [New-ChronosADUser.ps1](Notes/Scripts/New-ChronosADUser.ps1): joiner (creates the user in the department OU, sets the UPN, adds the birthright groups, syncs)
+- [Disable-ChronosUser.ps1](Notes/Scripts/Disable-ChronosUser.ps1): leaver (disables, resets the password, records and removes groups, moves to Leavers, syncs, revokes Entra sessions through Graph, logs the ticket)
+- [Move-ChronosADUser.ps1](Notes/Scripts/Move-ChronosADUser.ps1): mover (moves requested access into a time-bound shadow group, swaps birthright groups, moves the OU, syncs, revokes sessions, logs BEFORE/AFTER)
+- [Remove-ExpiredShadowGroups.ps1](Notes/Scripts/Remove-ExpiredShadowGroups.ps1): daily cleanup of expired shadow groups, run by a gMSA scoped to the Transition OU
+- [Test-StaleShadowGroups.ps1](Notes/Scripts/Test-StaleShadowGroups.ps1): daily check that writes a warning to the Application log for any expired or invalidly dated shadow group

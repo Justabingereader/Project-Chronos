@@ -88,7 +88,7 @@ function Move-ChronosADUser {
             New-ADGroup -Name $ShadowGroupName -GroupScope Global -GroupCategory Security -Path $roles.TransitionOU -Description "Ticket #$TicketNumber - Expires $ExpiryDate" -ErrorAction Stop
         }
 
-        Add-ADGroupMember -Identity $ShadowGroupName -Members $SamAccountName
+        Add-ADGroupMember -Identity $ShadowGroupName -Members $SamAccountName -ErrorAction Stop
         foreach ($Group in $AdHocGroups) {
             Add-ADGroupMember -Identity $Group -Members $ShadowGroupName -ErrorAction Stop
         }
@@ -148,4 +148,4 @@ function Move-ChronosADUser {
     $LogResults | Export-Csv -Path $LogPath -Append -NoTypeInformation
 
     return $LogResults
-}
+} 
