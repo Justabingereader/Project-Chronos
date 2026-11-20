@@ -147,7 +147,7 @@ Install-ADServiceAccount -Identity "gmsa-cleanup"
 Test-ADServiceAccount -Identity "gmsa-cleanup"
 ```
 
-![gMSA created. As run, -DNSHostName had a typo (gmsa-cleanup://chronos.lab); the command above is the correct form](images/rb-008-gmsa-cleanup-create.png)
+![gMSA created. As run, -DNSHostName had a typo (gmsa-cleanup://chronos.lab); the attribute has since been corrected to gmsa-cleanup.chronos.lab](images/rb-008-gmsa-cleanup-create.png)
 
 ![Install-ADServiceAccount takes the gMSA's name, not the DC's](images/rb-008-gmsa-cleanup-install.png)
 
