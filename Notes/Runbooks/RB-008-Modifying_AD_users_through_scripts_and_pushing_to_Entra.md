@@ -30,7 +30,7 @@ starts a new PowerShell process and forces a sync to Entra rather than waiting f
 
 ## Leaver
 
-Then I created [Disable-ChronosUser.ps1](../Scripts/Disable-ChronosUser.ps1) to disable a user and move it into the Leavers OU. It takes a SamAccountName and a TicketNumber as parameters, and returns an error message if either cannot be verified or the ticket is a duplicate. After creating the script, I loaded it with dot notation and ran the function with the mandatory parameters, then verified in Entra that the account was disabled and in AD that the user had been moved to the Leavers OU.
+Then I created [Disable-ChronosUser.ps1](../Scripts/Disable-ChronosUser.ps1) to disable a user and move it into the Leavers OU. It takes a SamAccountName and a TicketNumber as parameters and stops if the ticket has already been processed. It disables the account, resets the password, records the user's groups in its description and removes them, moves it to Leavers, runs a delta sync and waits for it to finish, then logs the ticket to `C:\Logs\OffboardingTicketsv1.csv`. After creating the script, I loaded it with dot notation and ran the function with the mandatory parameters, then verified in Entra that the account was disabled and in AD that the user had been moved to the Leavers OU.
 
 Then I ran a full joiner-leaver sequence, proving the end-to-end flow.
 
@@ -80,15 +80,20 @@ Install-Module Microsoft.Graph.Authentication, Microsoft.Graph.Users.Actions -Sc
 I then added the client ID, tenant ID and thumbprint to a PowerShell data file (`C:\Scripts\chronos-config.psd1`, gitignored, never committed), imported it into Disable-ChronosUser, and added:
 
 ```powershell
-Connect-MgGraph -ClientId $($Config.ClientId) -TenantId $($Config.TenantId) -CertificateThumbprint $($Config.Thumbprint) -NoWelcome
-$ADUser = Get-ADUser -Identity $SamAccountName -Properties UserPrincipalName
-$UserUPN = $ADUser.UserPrincipalName
-$RevokeResult = Revoke-MgUserSignInSession -UserId $UserUPN
-$isRevoked = $RevokeResult.Value
-Disconnect-MgGraph | Out-Null
+try {
+    Connect-MgGraph -ClientId $($Config.ClientId) -TenantId $($Config.TenantId) -CertificateThumbprint $($Config.Thumbprint) -NoWelcome -ErrorAction Stop
+    $ADUser = Get-ADUser -Identity $SamAccountName -Properties UserPrincipalName
+    $UserUPN = $ADUser.UserPrincipalName
+    $RevokeResult = Revoke-MgUserSignInSession -UserId $UserUPN -ErrorAction Stop
+    $isRevoked = $RevokeResult.Value
+} catch {
+    $isRevoked = "FAILED: $($_.Exception.Message)"
+} finally {
+    Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
+}
 ```
 
-to connect to Graph, revoke the specified user through its UPN, and disconnect. The output of `Disconnect-MgGraph` is sent to `Out-Null` so the connection details aren't displayed to anyone watching the console.
+to connect to Graph, revoke the specified user through its UPN, and disconnect. It runs after the delta sync has finished, so the account is already disabled in the cloud when the revoke lands. A failure is recorded as `FAILED: <reason>` in the log instead of stopping the script, and the output of `Disconnect-MgGraph` is sent to `Out-Null` so the connection details aren't displayed to anyone watching the console.
 
 ![Leaver run: test.run disabled and its sessions revoked](images/rb-008-leaver-run.png)
 
@@ -142,7 +147,7 @@ Install-ADServiceAccount -Identity "gmsa-cleanup"
 Test-ADServiceAccount -Identity "gmsa-cleanup"
 ```
 
-![gMSA created](images/rb-008-gmsa-cleanup-create.png)
+![gMSA created. As run, -DNSHostName had a typo (gmsa-cleanup://chronos.lab); the command above is the correct form](images/rb-008-gmsa-cleanup-create.png)
 
 ![Install-ADServiceAccount takes the gMSA's name, not the DC's](images/rb-008-gmsa-cleanup-install.png)
 
@@ -203,7 +208,14 @@ Register-ScheduledTask -TaskName "Chronos - Remove Expired Shadow Groups" -Actio
 
 ## Stale shadow group check
 
-The next step was creating a second gMSA called gmsa-stalecheck, with a DNSHostName and `PrincipalsAllowedToRetrieveManagedPassword` set to DC01's computer account, then installing and testing it, which returned True.
+The next step was creating a second gMSA called gmsa-stalecheck with a DNSHostName, then setting `PrincipalsAllowedToRetrieveManagedPassword` to DC01's computer account, then installing and testing it, which returned True.
+
+```powershell
+New-ADServiceAccount -Name "gmsa-stalecheck" -DNSHostName "gmsa-stalecheck.chronos.lab"
+Set-ADServiceAccount "gmsa-stalecheck" -PrincipalsAllowedToRetrieveManagedPassword "DC01$"
+Install-ADServiceAccount "gmsa-stalecheck"
+Test-ADServiceAccount "gmsa-stalecheck"
+```
 
 ![gmsa-stalecheck created, installed and tested](images/rb-008-gmsa-stalecheck.png)
 
