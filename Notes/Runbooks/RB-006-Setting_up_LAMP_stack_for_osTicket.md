@@ -149,3 +149,5 @@ sudo ufw status verbose
 ![Laptop: SSH still works through ufw; the source IP is 10.20.0.254 (host vEthernet)](images/rb-006-ssh-after-ufw.png)
 
 ![CL01: /scp still loads through ufw](images/rb-006-scp-after-ufw.png)
+
+on osTicket, under the Admin panel -> Emails -> settings tab, the verify email address option was turned off because it caused the application to try to resolve every new email through DC01's DNS, which doesn't have the domain name registered in Entra, leading to it describing newly created emails it can't resolve as invalid.

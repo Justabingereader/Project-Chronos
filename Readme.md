@@ -44,6 +44,7 @@ A hybrid IT support lab: on-premises Active Directory synced to a Microsoft Entr
 - [KB-003: VM fails to start with 0x8007000E](Notes/KBArticles/KB-003-Troubleshooting_VM_startup_due_to_memory_insufficiency.md)
 - [KB-004: osTicket returns HTTP 500 after submitting the setup page](Notes/KBArticles/KB-004-Troubleshooting_osTicket_HTTP-Error-500_after_setup_submit.md)
 - [KB-005: Synced user shows an onmicrosoft.com UPN after a restore](Notes/KBArticles/KB-005-Troubleshooting_AD_User_Showing_Entra_default_domain.md)
+- [KB-006: New user in AD can't sign in to Microsoft 365 (blind fault drill 01)](Notes/KBArticles/KB-006-New_user_with_AD_access_unable_to_sign_in_to_Microsoft365.md)
 
 ## Scripts
 
