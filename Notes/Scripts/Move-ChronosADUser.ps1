@@ -11,7 +11,7 @@ function Move-ChronosADUser {
 
     $LogFolder = "C:\Logs"
     if (-not (Test-Path $LogFolder)) { New-Item -ItemType Directory -Path $LogFolder | Out-Null }
-    $LogPath = "$LogFolder\MoverAuditLog.csv"
+    $LogPath = "$LogFolder\MoverAuditLogv2.csv"
 
     if (Test-Path $LogPath) {
         $PastRecords = Import-Csv -Path $LogPath
@@ -104,7 +104,27 @@ function Move-ChronosADUser {
         Move-ADObject -Identity $PreviousIdentity.DistinguishedName -TargetPath $TargetRole.OU -ErrorAction Stop
 
         $CurrentStep = "Entra Connect Delta Sync"
-        Start-Process powershell -ArgumentList '-NoProfile -Command "Import-Module ADSync; Start-ADSyncSyncCycle -PolicyType Delta | Out-Null; Start-Sleep 5; while ((Get-ADSyncScheduler).SyncCycleInProgress) { Start-Sleep 5 }"' -Wait -NoNewWindow
+        $SyncScript = @'
+$ErrorActionPreference = 'Stop'
+try {
+    Import-Module ADSync
+    Start-ADSyncSyncCycle -PolicyType Delta | Out-Null
+    Start-Sleep -Seconds 5
+    while ((Get-ADSyncScheduler).SyncCycleInProgress) {
+        Start-Sleep -Seconds 5
+    }
+    exit 0
+}
+catch {
+    Write-Error $_
+    exit 1
+}
+'@
+        $EncodedSyncCmd = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($SyncScript))
+        $SyncProc = Start-Process powershell -ArgumentList "-NoProfile -EncodedCommand $EncodedSyncCmd" -Wait -NoNewWindow -PassThru
+        if ($SyncProc.ExitCode -ne 0) {
+            throw "Entra Connect Delta Sync child process failed with exit code $($SyncProc.ExitCode)."
+        }
     }
     catch {
         $Status = "Partial: $CurrentStep"
