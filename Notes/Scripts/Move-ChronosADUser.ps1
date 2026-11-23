@@ -1,14 +1,8 @@
 function Move-ChronosADUser {
     param(
-        [Parameter(Mandatory = $true)]
-        [string]$SamAccountName,
-
-        [Parameter(Mandatory = $true)]
-        [string]$NewDepartment,
-
-        [Parameter(Mandatory = $true)]
-        [int]$TicketNumber,
-
+        [Parameter(Mandatory = $true)] [string]$SamAccountName,
+        [Parameter(Mandatory = $true)] [string]$NewDepartment,
+        [Parameter(Mandatory = $true)] [int]$TicketNumber,
         [int]$GraceDays = 30
     )
 
@@ -17,8 +11,8 @@ function Move-ChronosADUser {
 
     $LogFolder = "C:\Logs"
     if (-not (Test-Path $LogFolder)) { New-Item -ItemType Directory -Path $LogFolder | Out-Null }
-
     $LogPath = "$LogFolder\MoverAuditLog.csv"
+
     if (Test-Path $LogPath) {
         $PastRecords = Import-Csv -Path $LogPath
         if ($PastRecords.Ticket -contains $TicketNumber) {
@@ -49,7 +43,6 @@ function Move-ChronosADUser {
         Write-Warning "Guard failed: Account '$SamAccountName' is disabled (leaver). Rehiring requires a separate joiner process. Aborting."
         return
     }
-
     if ($PreviousIdentity.Department -eq $NewDepartment) {
         Write-Warning "Guard failed: User '$SamAccountName' is already in department '$NewDepartment'. No move required. Aborting."
         return
@@ -68,64 +61,79 @@ function Move-ChronosADUser {
         Groups         = ($PreviousGroups -join '; ')
         RunBy          = $env:USERNAME
         SessionRevoked = "N/A"
+        Status         = "N/A"
     }
 
-    $AllRoleGroups    = $roles.Departments.Values.Groups
+    $AllRoleGroups    = @($roles.Departments.Values | ForEach-Object { $_.Groups })
     $BirthrightGroups = @("Domain Users")
 
     $OldRoleGroups = $PreviousGroups | Where-Object { $AllRoleGroups -contains $_ }
-    $AdHocGroups   = $PreviousGroups | Where-Object {
-        $AllRoleGroups -notcontains $_ -and
-        $BirthrightGroups -notcontains $_ -and
-        $_ -notlike "TEMP_Expire_*"
-    }
+    $AdHocGroups   = $PreviousGroups | Where-Object { $AllRoleGroups -notcontains $_ -and $BirthrightGroups -notcontains $_ -and $_ -notlike "TEMP_Expire_*" }
 
-    if ($AdHocGroups) {
-        $ExpiryDate      = (Get-Date).AddDays($GraceDays).ToString("yyyy-MM-dd")
-        $ShadowGroupName = "TEMP_Expire_${ExpiryDate}_$SamAccountName"
+    $CurrentStep = "Initialization"
+    $Status      = "Complete"
 
-        if (-not (Get-ADGroup -Filter "Name -eq '$ShadowGroupName'" -ErrorAction SilentlyContinue)) {
-            New-ADGroup -Name $ShadowGroupName -GroupScope Global -GroupCategory Security -Path $roles.TransitionOU -Description "Ticket #$TicketNumber - Expires $ExpiryDate" -ErrorAction Stop
-        }
-
-        Add-ADGroupMember -Identity $ShadowGroupName -Members $SamAccountName -ErrorAction Stop
-        foreach ($Group in $AdHocGroups) {
-            Add-ADGroupMember -Identity $Group -Members $ShadowGroupName -ErrorAction Stop
-        }
-
-        Remove-ADPrincipalGroupMembership -Identity $SamAccountName -MemberOf $AdHocGroups -Confirm:$false -ErrorAction Stop
-    }
-
-    if ($OldRoleGroups) {
-        Remove-ADPrincipalGroupMembership -Identity $SamAccountName -MemberOf $OldRoleGroups -Confirm:$false -ErrorAction Stop
-    }
     try {
+        if ($AdHocGroups) {
+            $CurrentStep     = "Shadow Group Transition"
+            $ExpiryDate      = (Get-Date).AddDays($GraceDays).ToString("yyyy-MM-dd")
+            $ShadowGroupName = "TEMP_Expire_${ExpiryDate}_$SamAccountName"
+
+            if (-not (Get-ADGroup -Filter "Name -eq '$ShadowGroupName'" -ErrorAction SilentlyContinue)) {
+                New-ADGroup -Name $ShadowGroupName -GroupScope Global -GroupCategory Security -Path $roles.TransitionOU -Description "Ticket #$TicketNumber - Expires $ExpiryDate" -ErrorAction Stop
+            }
+            Add-ADGroupMember -Identity $ShadowGroupName -Members $SamAccountName -ErrorAction Stop
+            foreach ($Group in $AdHocGroups) {
+                Add-ADGroupMember -Identity $Group -Members $ShadowGroupName -ErrorAction Stop
+            }
+            Remove-ADPrincipalGroupMembership -Identity $SamAccountName -MemberOf $AdHocGroups -Confirm:$false -ErrorAction Stop
+        }
+
+        if ($OldRoleGroups) {
+            $CurrentStep = "Remove Old Role Groups"
+            Remove-ADPrincipalGroupMembership -Identity $SamAccountName -MemberOf $OldRoleGroups -Confirm:$false -ErrorAction Stop
+        }
+
+        $CurrentStep = "Add New Role Groups"
         Add-ADPrincipalGroupMembership -Identity $SamAccountName -MemberOf $TargetRole.Groups -ErrorAction Stop
 
+        $CurrentStep = "Update Department Attribute"
         Set-ADUser -Identity $SamAccountName -Department $NewDepartment -ErrorAction Stop
+
+        $CurrentStep = "Move OU"
         Move-ADObject -Identity $PreviousIdentity.DistinguishedName -TargetPath $TargetRole.OU -ErrorAction Stop
+
+        $CurrentStep = "Entra Connect Delta Sync"
         Start-Process powershell -ArgumentList '-NoProfile -Command "Import-Module ADSync; Start-ADSyncSyncCycle -PolicyType Delta | Out-Null; Start-Sleep 5; while ((Get-ADSyncScheduler).SyncCycleInProgress) { Start-Sleep 5 }"' -Wait -NoNewWindow
     }
     catch {
-        Write-Warning "FAILED: $($_.Exception.Message)"
-    }
-    try {
-        Connect-MgGraph -ClientId $Config.ClientId -TenantId $Config.TenantId -CertificateThumbprint $Config.Thumbprint -NoWelcome -ErrorAction Stop
-        $RevokeResult = Revoke-MgUserSignInSession -UserId $PreviousIdentity.UserPrincipalName -ErrorAction Stop
-        $isRevoked    = $RevokeResult.Value
-    }
-    catch {
-        $isRevoked = "FAILED: $($_.Exception.Message)"
-    }
-    finally {
-        Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
+        $Status = "Partial: $CurrentStep"
+        Write-Warning "FAILED during [$CurrentStep]: $($_.Exception.Message)"
     }
 
-    if ($isRevoked -eq $true) {
-        Write-Host "User session was successfully revoked." -ForegroundColor Green
+    if ($Status -eq "Complete") {
+        try {
+            Connect-MgGraph -ClientId $Config.ClientId -TenantId $Config.TenantId -CertificateThumbprint $Config.Thumbprint -NoWelcome -ErrorAction Stop
+            $RevokeResult = Revoke-MgUserSignInSession -UserId $PreviousIdentity.UserPrincipalName -ErrorAction Stop
+            $isRevoked = $RevokeResult.Value
+        }
+        catch {
+            $isRevoked = "FAILED: $($_.Exception.Message)"
+        }
+        finally {
+            Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
+        }
+
+        if ($isRevoked -eq $true) {
+            Write-Host "User session was successfully revoked." -ForegroundColor Green
+        }
+        else {
+            Write-Warning "Session revocation status: $isRevoked"
+        }
     }
     else {
-        Write-Warning "Session revocation status: $isRevoked"
+        $isRevoked = "Skipped ($Status)"
+        Write-Warning "Skipping Entra session revocation because move status is '$Status'."
     }
 
     $UpdatedIdentity = Get-ADUser -Identity $SamAccountName -Properties Department, MemberOf -ErrorAction Stop
@@ -142,10 +150,10 @@ function Move-ChronosADUser {
         Groups         = ($UpdatedGroups -join '; ')
         RunBy          = $env:USERNAME
         SessionRevoked = $isRevoked
+        Status         = $Status
     }
 
     $LogResults = @($BeforeSnapshot, $AfterSnapshot)
     $LogResults | Export-Csv -Path $LogPath -Append -NoTypeInformation
-
     return $LogResults
-} 
+}
