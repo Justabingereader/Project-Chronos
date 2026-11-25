@@ -11,6 +11,7 @@ A hybrid IT support lab: on-premises Active Directory synced to a Microsoft Entr
 | CL01 | Windows 11 Enterprise: DHCP client, joined to `chronos.lab` |
 | OSTICKET01 | Ubuntu Server 24.04: Apache, MariaDB, PHP 8.4, osTicket v1.18.4, `10.20.0.5`, reachable at `osticket.chronos.lab` |
 | Domain | `chronos.lab` |
+| Entra tenant | Hybrid sync (Password Hash Sync) from `OU=Chronos`; Entra ID P2 trial; Conditional Access baseline (MFA for all users and admins, legacy authentication blocked) |
 
 - [IP plan and topology](Design/ip-plan-and-topology.md)
 - [OU design](Design/OU-Design.md)
@@ -21,7 +22,7 @@ A hybrid IT support lab: on-premises Active Directory synced to a Microsoft Entr
 | --- | --- | --- |
 | 0 | Local foundation: network, DC, DNS, DHCP, OUs, client, osTicket | Done |
 | 1 | Tenant, hybrid sync, joiner/mover/leaver | Done |
-| 2 | Entra for people: MFA, SSPR, Conditional Access | Not started |
+| 2 | Entra for people: MFA, SSPR, Conditional Access | In progress (MFA and Conditional Access done; SSPR, PIM and Identity Protection next) |
 | 3 | Intune on a hybrid-joined VM and an Entra-joined laptop | Not started |
 | 4 | Microsoft 365 admin basics | Not started |
 | — | Blind fault drills | Run throughout |
@@ -36,6 +37,7 @@ A hybrid IT support lab: on-premises Active Directory synced to a Microsoft Entr
 - [RB-006: Set up the LAMP stack and osTicket](Notes/Runbooks/RB-006-Setting_up_LAMP_stack_for_osTicket.md)
 - [RB-007: Connect on-prem AD to Entra with Connect Sync](Notes/Runbooks/RB-007-Connecting_Entra_Connect_to_on-prem_AD.md)
 - [RB-008: Joiner, mover and leaver scripts with Entra session revocation](Notes/Runbooks/RB-008-Modifying_AD_users_through_scripts_and_pushing_to_Entra.md)
+- [RB-009: Break-glass account, Entra ID P2 licensing and baseline Conditional Access](Notes/Runbooks/RB-009-Entra_for_people_MFA_CA.md)
 
 ## Knowledge-base articles
 
